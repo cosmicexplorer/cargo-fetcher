@@ -1,4 +1,4 @@
-use crate::{fetch, util, Ctx, Krate, Source};
+use crate::{fetch, util, Ctx, Krate, Source, UrlWrapper};
 use anyhow::Error;
 use std::{convert::TryFrom, time::Duration};
 use tracing::{debug, error, info};
@@ -15,7 +15,9 @@ pub async fn registry_index(backend: crate::Storage, max_stale: Duration) -> Res
         name: "crates.io-index".to_owned(),
         version: "1.0.0".to_owned(),
         source: Source::Git {
-            url: canonicalized.as_ref().clone(),
+            url: UrlWrapper {
+                url: canonicalized.as_ref().clone()
+            },
             ident,
             rev: String::new(),
         },

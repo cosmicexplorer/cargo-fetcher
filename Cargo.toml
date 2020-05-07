@@ -43,7 +43,7 @@ tracing-futures = "0.2.2"
 tracing-subscriber = "0.2.1"
 url = "2.1.1"
 walkdir = "2.3.1"
-zstd = "0.5.1+zstd.1.4.4"
+zstd = "0.5.1"
 
 [dependencies.tokio]
 version = "0.2.13"
@@ -75,9 +75,3 @@ required-features = ["s3_test"]
 name = "diff_cargo"
 path = "tests/diff_cargo.rs"
 required-features = ["s3_test"]
-
-[profile.dev.build-override]
-opt-level = 0
-
-[profile.dev.package."*"]
-opt-level = 3

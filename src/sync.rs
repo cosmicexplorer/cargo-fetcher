@@ -1,4 +1,4 @@
-use crate::{util, Krate, Source};
+use crate::{util, Krate, Source, UrlWrapper};
 use anyhow::{Context, Error};
 use std::{convert::TryFrom, io::Write, path::PathBuf};
 use tracing::{debug, error, info, warn};
@@ -49,7 +49,9 @@ pub async fn registry_index(root_dir: PathBuf, backend: crate::Storage) -> Resul
         name: "crates.io-index".to_owned(),
         version: "1.0.0".to_owned(),
         source: Source::Git {
-            url: canonicalized.into(),
+            url: UrlWrapper {
+                url: canonicalized.into(),
+            },
             ident,
             rev: String::new(),
         },

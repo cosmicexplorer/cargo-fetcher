@@ -7,9 +7,19 @@ use std::{
     convert::TryFrom,
     fmt,
     path::{Path, PathBuf},
+    str::FromStr,
     sync::Arc,
 };
 pub use url::Url;
+pub use bytes::Bytes;
+
+use serde::{
+    self,
+    de::Visitor,
+    export::{fmt::Error as SerdeExportError, Formatter},
+    ser::Serializer,
+    Deserializer,
+};
 
 pub mod backends;
 mod fetch;
@@ -36,10 +46,62 @@ struct LockContents {
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
+pub struct UrlWrapper {
+    url: Url,
+}
+
+impl UrlWrapper {
+    pub fn get_url(&self) -> &Url {
+        &self.url
+    }
+}
+
+impl serde::Serialize for UrlWrapper {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.url.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for UrlWrapper {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct UrlVisitor;
+
+        impl<'de> Visitor<'de> for UrlVisitor {
+            type Value = UrlWrapper;
+
+            fn expecting(&self, formatter: &mut Formatter<'_>) -> Result<(), SerdeExportError> {
+                formatter.write_str("struct UrlWrapper")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                let url = Url::from_str(v).map_err(|err| {
+                    serde::de::Error::invalid_value(
+                        serde::de::Unexpected::Str(&format!("{:?}: {}", v, err)),
+                        &"A string representation of a URL",
+                    )
+                })?;
+                Ok(UrlWrapper { url })
+            }
+        }
+
+        deserializer.deserialize_string(UrlVisitor)
+    }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Source {
     CratesIo(String),
     Git {
-        url: Url,
+        url: UrlWrapper,
         rev: String,
         ident: String,
     },
@@ -70,7 +132,9 @@ impl Source {
         let ident = canonicalized.ident();
 
         Ok(Source::Git {
-            url: canonicalized.into(),
+            url: UrlWrapper {
+                url: canonicalized.into(),
+            },
             ident,
             rev: rev.to_owned(),
         })
@@ -84,7 +148,7 @@ impl Source {
     }
 }
 
-#[derive(Ord, Eq, Clone, Debug)]
+#[derive(Ord, Eq, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Krate {
     pub name: String,
     pub version: String, // We just treat versions as opaque strings
@@ -222,14 +286,11 @@ pub trait Backend: fmt::Debug {
     fn set_prefix(&mut self, prefix: &str);
 }
 
-pub fn read_lock_file<P: AsRef<Path>>(lock_path: P) -> Result<Vec<Krate>, Error> {
+pub fn read_lock_file_contents(contents: &str) -> Result<Vec<Krate>, Error> {
     use std::fmt::Write;
     use tracing::{error, trace};
 
-    let mut locks: LockContents = {
-        let toml_contents = std::fs::read_to_string(lock_path)?;
-        toml::from_str(&toml_contents)?
-    };
+    let mut locks: LockContents = toml::from_str(contents)?;
 
     let mut lookup = String::with_capacity(128);
     let mut krates = Vec::with_capacity(locks.package.len());
@@ -299,4 +360,8 @@ pub fn read_lock_file<P: AsRef<Path>>(lock_path: P) -> Result<Vec<Krate>, Error>
     }
 
     Ok(krates)
+}
+
+pub fn read_lock_file<P: AsRef<Path>>(lock_path: P) -> Result<Vec<Krate>, Error> {
+    read_lock_file_contents(&std::fs::read_to_string(lock_path)?)
 }
