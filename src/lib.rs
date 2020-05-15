@@ -2,6 +2,7 @@
 #![warn(rust_2018_idioms)]
 
 use anyhow::Error;
+pub use bytes::Bytes;
 use std::{
     collections::BTreeMap,
     convert::TryFrom,
@@ -11,7 +12,6 @@ use std::{
     sync::Arc,
 };
 pub use url::Url;
-pub use bytes::Bytes;
 
 use serde::{
     self,
@@ -27,7 +27,7 @@ pub mod mirror;
 pub mod sync;
 pub mod util;
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 struct Package {
     name: String,
     version: String,
@@ -45,9 +45,9 @@ struct LockContents {
     metadata: BTreeMap<String, String>,
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Hash)]
 pub struct UrlWrapper {
-    url: Url,
+    pub url: Url,
 }
 
 impl UrlWrapper {
@@ -97,7 +97,9 @@ impl<'de> serde::Deserialize<'de> for UrlWrapper {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Debug, serde::Serialize, serde::Deserialize,
+)]
 pub enum Source {
     CratesIo(String),
     Git {
@@ -148,7 +150,7 @@ impl Source {
     }
 }
 
-#[derive(Ord, Eq, Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Hash, Ord, Eq, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Krate {
     pub name: String,
     pub version: String, // We just treat versions as opaque strings

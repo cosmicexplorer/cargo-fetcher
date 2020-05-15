@@ -49,7 +49,7 @@ fn short_hash<H: Hash>(hashable: &H) -> String {
 pub struct Canonicalized(Url);
 
 impl Canonicalized {
-    pub(crate) fn ident(&self) -> String {
+    pub fn ident(&self) -> String {
         // This is the same identity function used by cargo
         let ident = self
             .0
