@@ -236,9 +236,14 @@ pub struct S3Location<'a> {
     pub prefix: &'a str,
 }
 
+pub struct FilesystemLocation<'a> {
+    pub path: &'a Path,
+}
+
 pub enum CloudLocation<'a> {
     Gcs(GcsLocation<'a>),
     S3(S3Location<'a>),
+    Fs(FilesystemLocation<'a>),
 }
 
 pub type Storage = Arc<dyn Backend + Sync + Send>;
